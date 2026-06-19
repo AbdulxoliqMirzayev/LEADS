@@ -21,6 +21,7 @@ from db import (
 )
 from keyboards import (
     kb_admin_main,
+    kb_admin_reply,
     kb_language,
     kb_phone_request,
     kb_risk,
@@ -120,7 +121,8 @@ async def cmd_start(m: Message):
     add_event(m.from_user.id, "start", "/start")
 
     if is_admin(m.from_user.id, SETTINGS.ADMIN_IDS):
-        await m.answer("🔐 Admin panel", reply_markup=kb_admin_main(), parse_mode=None)
+        await m.answer("🔐 Admin panel", reply_markup=kb_admin_reply(), parse_mode=None)
+        await m.answer("Kerakli bo'limni tanlang:", reply_markup=kb_admin_main(), parse_mode=None)
         return
 
     u = get_user(m.from_user.id)

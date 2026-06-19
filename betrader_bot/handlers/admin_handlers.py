@@ -23,6 +23,7 @@ from models import (
 )
 from keyboards import (
     kb_admin_main,
+    kb_admin_reply,
     kb_admin_risk_menu,
     kb_admin_status_menu,
 )
@@ -100,8 +101,39 @@ async def admin_entry(m: Message):
         await m.answer(_deny_text())
         return
 
-    await m.answer("🔐 Admin panel", reply_markup=kb_admin_main(), parse_mode=None)
+    await m.answer("🔐 Admin panel", reply_markup=kb_admin_reply(), parse_mode=None)
+    await m.answer("Kerakli bo'limni tanlang:", reply_markup=kb_admin_main(), parse_mode=None)
     add_event(m.from_user.id, "menu_click", "admin_open")
+
+
+@router.message(F.text.in_({"📊 Statistika", "📂 Risk bo'yicha", "✅/📵 Status bo'yicha", "📢 Reklama yuborish", "❌ Yopish"}))
+async def admin_reply_menu(m: Message):
+    if not is_admin(m.from_user.id, SETTINGS.ADMIN_IDS):
+        await m.answer(_deny_text())
+        return
+
+    text = m.text or ""
+    if text == "📊 Statistika":
+        await m.answer(_stats_text(), reply_markup=kb_admin_reply(), parse_mode=None)
+        add_event(m.from_user.id, "menu_click", "admin_stats")
+        return
+
+    if text == "📂 Risk bo'yicha":
+        await m.answer("📂 Risk bo'yicha leadlar", reply_markup=kb_admin_risk_menu(), parse_mode=None)
+        add_event(m.from_user.id, "menu_click", "admin_risk_menu")
+        return
+
+    if text == "✅/📵 Status bo'yicha":
+        await m.answer("✅/📵 Status bo'yicha", reply_markup=kb_admin_status_menu(), parse_mode=None)
+        add_event(m.from_user.id, "menu_click", "admin_status_menu")
+        return
+
+    if text == "📢 Reklama yuborish":
+        await m.answer("Reklama yuborish uchun quyidagi tugmani bosing:", reply_markup=kb_admin_main(), parse_mode=None)
+        add_event(m.from_user.id, "menu_click", "admin_broadcast_hint")
+        return
+
+    await m.answer("✅ Admin panel yopildi.", reply_markup=kb_admin_reply(), parse_mode=None)
 
 
 # -------------------------

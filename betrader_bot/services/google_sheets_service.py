@@ -127,6 +127,7 @@ def _format_sheet(service, spreadsheet_id: str) -> None:
         {"red": 0.92, "green": 0.92, "blue": 0.92},  # Qayerdan eshitdi
         {"red": 1.00, "green": 0.90, "blue": 0.76},  # Holati
     ]
+    column_widths = [170, 140, 170, 175, 210, 145, 230, 190, 170]
 
     requests: list[dict[str, Any]] = []
     for index, color in enumerate(header_colors):
@@ -165,24 +166,57 @@ def _format_sheet(service, spreadsheet_id: str) -> None:
                     "userEnteredFormat": {
                         "backgroundColor": {"red": 1.0, "green": 1.0, "blue": 1.0},
                         "textFormat": {"bold": False},
+                        "horizontalAlignment": "CENTER",
+                        "verticalAlignment": "MIDDLE",
                     }
                 },
-                "fields": "userEnteredFormat(backgroundColor,textFormat.bold)",
+                "fields": "userEnteredFormat(backgroundColor,textFormat.bold,horizontalAlignment,verticalAlignment)",
             }
         }
     )
 
-    requests.append(
-        {
-            "autoResizeDimensions": {
-                "dimensions": {
-                    "sheetId": sheet_id,
-                    "dimension": "COLUMNS",
-                    "startIndex": 0,
-                    "endIndex": len(HEADER),
+    for index, width in enumerate(column_widths):
+        requests.append(
+            {
+                "updateDimensionProperties": {
+                    "range": {
+                        "sheetId": sheet_id,
+                        "dimension": "COLUMNS",
+                        "startIndex": index,
+                        "endIndex": index + 1,
+                    },
+                    "properties": {"pixelSize": width},
+                    "fields": "pixelSize",
                 }
             }
-        }
+        )
+
+    requests.extend(
+        [
+            {
+                "updateDimensionProperties": {
+                    "range": {
+                        "sheetId": sheet_id,
+                        "dimension": "ROWS",
+                        "startIndex": 0,
+                        "endIndex": 1,
+                    },
+                    "properties": {"pixelSize": 28},
+                    "fields": "pixelSize",
+                }
+            },
+            {
+                "updateDimensionProperties": {
+                    "range": {
+                        "sheetId": sheet_id,
+                        "dimension": "ROWS",
+                        "startIndex": 1,
+                    },
+                    "properties": {"pixelSize": 26},
+                    "fields": "pixelSize",
+                }
+            },
+        ]
     )
 
     service.spreadsheets().batchUpdate(

@@ -105,6 +105,18 @@ def kb_admin_main() -> InlineKeyboardMarkup:
     ])
 
 
+def kb_admin_reply() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="📊 Statistika"), KeyboardButton(text="📂 Risk bo'yicha")],
+            [KeyboardButton(text="✅/📵 Status bo'yicha"), KeyboardButton(text="📢 Reklama yuborish")],
+            [KeyboardButton(text="❌ Yopish")],
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=False,
+    )
+
+
 def kb_source() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [
