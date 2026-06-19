@@ -10,6 +10,7 @@ from aiogram.enums import ParseMode
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
 from config import SETTINGS
 from db import init_db
@@ -19,6 +20,7 @@ from handlers.admin_handlers import router as admin_router
 from handlers.ad_handlers import router as ad_router
 
 from jobs.daily_inactive_report import send_daily_inactive_report
+from jobs.no_answer_reminders import send_no_answer_reminders
 
 
 async def main() -> None:
@@ -56,6 +58,14 @@ async def main() -> None:
         replace_existing=True,
     )
 
+    scheduler.add_job(
+        send_no_answer_reminders,
+        trigger=IntervalTrigger(hours=3),
+        args=[bot],
+        id="no_answer_reminders",
+        replace_existing=True,
+    )
+
     scheduler.start()
 
     logging.info("BeTrader AI Telegram bot ishga tushmoqda...")
@@ -65,6 +75,7 @@ async def main() -> None:
         SETTINGS.DAILY_REPORT_MINUTE,
         SETTINGS.TIMEZONE,
     )
+    logging.info("No-answer admin reminders scheduled every 3 hours.")
 
     # 5. Polling
     await dp.start_polling(bot)

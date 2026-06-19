@@ -150,12 +150,8 @@ async def cancel(m: Message):
 # Catch admin message when waiting for broadcast
 # =========================
 # Catch admin message when waiting for broadcast
-@router.message(F.from_user.id.in_(list(SETTINGS.ADMIN_IDS)))
+@router.message(lambda m: is_admin(m.from_user.id, SETTINGS.ADMIN_IDS) and WAITING_BROADCAST.get(m.from_user.id))
 async def admin_broadcast_receive(m: Message):
-    # admin bo'lsa ham, broadcast rejimi yoqilmagan bo'lsa ushlamaydi
-    if not WAITING_BROADCAST.get(m.from_user.id):
-        return  # normal admin message, ignore here
-
     kind, file_id, text = _extract_broadcast_payload(m)
 
     # minimal validation

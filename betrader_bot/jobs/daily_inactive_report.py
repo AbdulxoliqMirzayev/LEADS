@@ -1,64 +1,58 @@
-# jobs/daily_inactive_report.py
 from __future__ import annotations
 
 from aiogram import Bot
 
-from config import SETTINGS
-from db import list_inactive_new_users
-from utils import safe_username, fmt_int
+from db import list_incomplete_users_for_reminder, mark_reminder_sent
+from models import LANG_EN, LANG_RU, LANG_UZ, Lang
 
 
-def _build_report_text(users: list[dict]) -> str:
-    if not users:
+def _reminder_text(lang: Lang, name: str | None) -> str:
+    display_name = name or {
+        LANG_UZ: "hurmatli mijoz",
+        LANG_RU: "уважаемый клиент",
+        LANG_EN: "dear client",
+    }.get(lang, "hurmatli mijoz")
+
+    if lang == LANG_RU:
         return (
-            "✅ **Kunlik lead report**\n\n"
-            "Oxirgi 24 soatda gaplashilmagan yangi leadlar yo‘q."
+            f"Здравствуйте, {display_name}.\n\n"
+            "Вы начали регистрацию в BeTrader, но не завершили ее до конца. "
+            "Пожалуйста, оставьте номер телефона, чтобы наш специалист мог связаться с вами.\n\n"
+            "Мы ждём вас 🙂"
         )
 
-    lines = [
-        "📋 **Kunlik lead report**",
-        "",
-        f"⏰ Oxirgi 24 soatda gaplashilmagan leadlar: **{len(users)} ta**",
-        "",
-    ]
-
-    for i, u in enumerate(users, start=1):
-        username = safe_username(u.get("username"))
-        amount = u.get("amount")
-        amount_txt = f"${fmt_int(amount)}" if amount else "-"
-
-        exp = u.get("experienced")
-        if exp == 1:
-            exp_txt = "Ha"
-        elif exp == 0:
-            exp_txt = "Yo‘q"
-        else:
-            exp_txt = "-"
-
-        lines.append(
-            f"{i}. 👤 {u.get('full_name') or '-'} | {username}\n"
-            f"   📊 Risk: {u.get('risk_profile') or '-'}\n"
-            f"   💰 Summa: {amount_txt}\n"
-            f"   📚 Tajriba: {exp_txt}\n"
-            f"   📞 Telefon: {u.get('phone') or '-'}\n"
+    if lang == LANG_EN:
+        return (
+            f"Hello, {display_name}.\n\n"
+            "You started registration with BeTrader but did not finish it. "
+            "Please leave your phone number so our specialist can contact you.\n\n"
+            "We are waiting for you 🙂"
         )
 
-    return "\n".join(lines)
+    return (
+        f"Assalomu alaykum, {display_name}.\n\n"
+        "Siz BeTrader ro'yxatdan o'tish jarayonini boshlagansiz, lekin oxirigacha yakunlamadingiz. "
+        "Iltimos, telefon raqamingizni qoldiring, mutaxassislarimiz siz bilan bog'lanadi.\n\n"
+        "Sizni kutyapmiz 🙂"
+    )
 
 
 async def send_daily_inactive_report(bot: Bot) -> None:
     """
-    Har kuni adminlarga 24 soatda gaplashilmagan yangi leadlar ro'yxatini yuboradi.
+    24 soatdan ortiq tugallanmagan ro'yxatdan o'tishlarga bir martalik eslatma yuboradi.
     """
-    if not SETTINGS.ADMIN_IDS:
-        return
+    users = list_incomplete_users_for_reminder(hours=24, limit=100)
 
-    users = list_inactive_new_users(hours=24, limit=100)
-    text = _build_report_text(users)
+    for user in users:
+        tg_id = user.get("tg_id")
+        if not tg_id:
+            continue
 
-    for admin_id in SETTINGS.ADMIN_IDS:
+        lang: Lang = user.get("lang") or LANG_UZ
+        name = user.get("name") or user.get("full_name")
+
         try:
-            await bot.send_message(admin_id, text)
+            await bot.send_message(tg_id, _reminder_text(lang, name))
+            mark_reminder_sent(tg_id)
         except Exception:
-            # admin botni bloklagan bo‘lishi mumkin
             continue

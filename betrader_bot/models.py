@@ -20,20 +20,22 @@ SUPPORTED_LANGS: tuple[Lang, ...] = (LANG_UZ, LANG_RU, LANG_EN)
 # =========================
 Step = Literal[
     "choose_lang",
-    "choose_experience",
+    "wait_name",
     "main_menu",
     "wait_risk",
     "wait_amount",
     "wait_phone",
+    "wait_source",
     "ask_free_question",
 ]
 
 STEP_CHOOSE_LANG: Step = "choose_lang"
-STEP_CHOOSE_EXPERIENCE: Step = "choose_experience"
+STEP_WAIT_NAME: Step = "wait_name"
 STEP_MAIN_MENU: Step = "main_menu"
 STEP_WAIT_RISK: Step = "wait_risk"
 STEP_WAIT_AMOUNT: Step = "wait_amount"
 STEP_WAIT_PHONE: Step = "wait_phone"
+STEP_WAIT_SOURCE: Step = "wait_source"
 STEP_ASK_FREE_QUESTION: Step = "ask_free_question"
 
 
@@ -52,14 +54,13 @@ RISK_PROFILES: tuple[RiskProfile, ...] = (RISK_HALOL, RISK_KONSERV, RISK_YUQORI)
 # =========================
 # Lead Status (Admin result)
 # =========================
-LeadStatus = Literal["new", "paid", "thinking", "rejected"]
+LeadStatus = Literal["new", "called", "no_answer"]
 
 LEAD_NEW: LeadStatus = "new"
-LEAD_PAID: LeadStatus = "paid"
-LEAD_THINKING: LeadStatus = "thinking"
-LEAD_REJECTED: LeadStatus = "rejected"
+LEAD_CALLED: LeadStatus = "called"
+LEAD_NO_ANSWER: LeadStatus = "no_answer"
 
-LEAD_STATUSES: tuple[LeadStatus, ...] = (LEAD_NEW, LEAD_PAID, LEAD_THINKING, LEAD_REJECTED)
+LEAD_STATUSES: tuple[LeadStatus, ...] = (LEAD_NEW, LEAD_CALLED, LEAD_NO_ANSWER)
 
 
 # =========================
@@ -68,23 +69,23 @@ LEAD_STATUSES: tuple[LeadStatus, ...] = (LEAD_NEW, LEAD_PAID, LEAD_THINKING, LEA
 EventType = Literal[
     "start",
     "lang_set",
-    "experience_set",
+    "name_set",
     "risk_selected",
     "amount_set",
     "phone_set",
+    "source_set",
     "free_question",
     "menu_click",
-    "admin_mark_paid",
-    "admin_mark_thinking",
-    "admin_mark_rejected",
+    "admin_mark_called",
+    "admin_mark_no_answer",
     "broadcast_sent",
+    "reminder_sent",
 ]
 
 # Admin status mapping
 ADMIN_MARK_EVENT: dict[LeadStatus, EventType] = {
-    LEAD_PAID: "admin_mark_paid",
-    LEAD_THINKING: "admin_mark_thinking",
-    LEAD_REJECTED: "admin_mark_rejected",
+    LEAD_CALLED: "admin_mark_called",
+    LEAD_NO_ANSWER: "admin_mark_no_answer",
 }
 
 
@@ -96,13 +97,15 @@ class UserProfile:
     tg_id: int
     username: str | None = None
     full_name: str | None = None
+    name: str | None = None
     lang: Lang = LANG_UZ
     step: Step = STEP_CHOOSE_LANG
 
-    experienced: bool | None = None
     risk_profile: RiskProfile | None = None
     amount: float | None = None
     phone: str | None = None
+    source: str | None = None
+    reminder_sent_at: str | None = None
 
     lead_status: LeadStatus = LEAD_NEW
     created_at: str | None = None

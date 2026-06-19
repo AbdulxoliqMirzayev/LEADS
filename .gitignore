@@ -17,3 +17,7 @@ __pycache__/
 .ruff_cache/
 
 .DS_Store
+
+# Local Google service account secrets
+baracap-*.json
+service_account*.json

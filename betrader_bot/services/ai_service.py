@@ -1,80 +1,118 @@
-# services/ai_service.py
 from __future__ import annotations
 
 import asyncio
+import ast
+from pathlib import Path
 from typing import Optional
 
 import openai
 from openai import OpenAI
 
 from config import SETTINGS
-from models import Lang, LANG_UZ, LANG_RU, LANG_EN
+from models import LANG_EN, LANG_RU, LANG_UZ, Lang
 
 
-# OpenAI client
 _client: Optional[OpenAI] = OpenAI(api_key=SETTINGS.OPENAI_API_KEY) if SETTINGS.OPENAI_API_KEY else None
+_prompt_cache: str | None = None
+
+
+DEFAULT_SYSTEM_PROMPT = """
+You are Akmal, a professional BeTrader support and sales representative.
+
+Core rules:
+- Never say you are an AI, bot, model, or assistant.
+- Match the user's language exactly: Uzbek, Russian, or English.
+- Be calm, confident, helpful, and sales-oriented without pressure.
+- Support and problem-solving questions have priority over sales.
+- Never promise guaranteed profit, fixed profit, or 100% safety.
+- Always mention that market results can change and risk exists.
+- Explain financial topics simply and clearly.
+- Keep answers concise: 2-5 short paragraphs.
+- Use light professional emojis only when helpful.
+- End with one useful next question when appropriate.
+
+Business goal:
+- Help the user understand BeTrader, risk levels, registration, phone contact, payouts, and investment options.
+- Build trust through clarity, not unrealistic promises.
+""".strip()
+
+
+def _load_custom_prompt() -> str:
+    global _prompt_cache
+
+    if _prompt_cache is not None:
+        return _prompt_cache
+
+    path = SETTINGS.AI_SYSTEM_PROMPT_FILE
+    if path:
+        try:
+            prompt_path = Path(path)
+            if prompt_path.exists():
+                raw = prompt_path.read_text(encoding="utf-8").strip()
+                _prompt_cache = _extract_prompt_text(raw)
+                if _prompt_cache:
+                    return _prompt_cache
+        except Exception:
+            pass
+
+    _prompt_cache = DEFAULT_SYSTEM_PROMPT
+    return _prompt_cache
+
+
+def _extract_prompt_text(raw: str) -> str:
+    if not raw.startswith("SYSTEM_PROMPT"):
+        return raw
+
+    try:
+        module = ast.parse(raw)
+        for node in module.body:
+            if isinstance(node, ast.Assign):
+                for target in node.targets:
+                    if isinstance(target, ast.Name) and target.id == "SYSTEM_PROMPT":
+                        if isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
+                            return node.value.value.strip()
+    except Exception:
+        pass
+
+    marker = '"""'
+    first = raw.find(marker)
+    last = raw.rfind(marker)
+    if first != -1 and last != -1 and last > first:
+        return raw[first + len(marker):last].strip()
+
+    return raw
 
 
 def _system_prompt(lang: Lang) -> str:
-    """
-    BeTrader style: professional, calm, trust-building, risk-aware.
-    Replies must follow user's language.
-    Keep 3–6 short paragraphs, light professional emojis, end with a question.
-    """
     if lang == LANG_RU:
-        language_rule = "Отвечай ТОЛЬКО на русском."
+        language_rule = "Ответь только на русском языке."
     elif lang == LANG_EN:
-        language_rule = "Answer ONLY in English."
+        language_rule = "Answer only in English."
     else:
-        language_rule = "Faqat O‘zbek tilida javob ber."
+        language_rule = "Faqat o'zbek tilida javob ber."
 
-    return f"""
-You are a Senior Financial Advisor at BeTrader.
-{language_rule}
-
-Style:
-- Professional, calm, trust-building, transparent
-- Friendly but not casual
-- Not robotic
-Rules:
-- Never promise guaranteed profit
-- Never say 100% safe
-- Never hide risk
-- Don't argue with user
-- Explain risk-return relationship
-- Use simple analogies
-- Keep answers 3–6 short paragraphs
-- Use light professional emojis (1–3 max)
-- End with an engagement question
-
-If user asks about:
-- company trust/pyramid: explain legal/company presence and that risk exists
-- returns: use "may / mumkin" language, no guarantees, mention volatility
-- how it works: explain steps simply
-- withdrawals/payout: explain generally, ask for plan/tariff details if needed
-""".strip()
+    return f"{_load_custom_prompt()}\n\n{language_rule}"
 
 
 def _safety_footer(lang: Lang) -> str:
     if lang == LANG_RU:
-        return "⚠️ Информация носит общий характер и не является финансовой рекомендацией. Рынок несёт риск."
+        return "⚠️ Информация носит общий характер и не является финансовой рекомендацией. Рынок несет риск."
     if lang == LANG_EN:
         return "⚠️ This is general information, not financial advice. Markets involve risk."
-    return "⚠️ Bu umumiy ma’lumot, moliyaviy tavsiya emas. Bozorda risk mavjud."
+    return "⚠️ Bu umumiy ma'lumot, moliyaviy tavsiya emas. Bozorda risk mavjud."
+
+
+def _not_configured(lang: Lang) -> str:
+    if lang == LANG_RU:
+        return "Модуль консультации сейчас не настроен: OPENAI_API_KEY не найден. ⚙️"
+    if lang == LANG_EN:
+        return "The consultation module is not configured: OPENAI_API_KEY is missing. ⚙️"
+    return "Hozir konsultatsiya moduli sozlanmagan: OPENAI_API_KEY topilmadi. ⚙️"
 
 
 async def ask_ai(lang: Lang, user_text: str) -> str:
-    """
-    Main entry for handlers. Returns assistant text in user's language.
-    Handles quota/rate errors gracefully.
-    """
     if not _client:
-        # API key yo'q bo'lsa ham bot yiqilmasin
-        if lang == LANG_RU:
-            return "AI sozlanmagan: OPENAI_API_KEY topilmadi. ⚙️"
-        if lang == LANG_EN:
-            return "AI is not configured: OPENAI_API_KEY is missing. ⚙️"
-        return "AI sozlanmagan: OPENAI_API_KEY topilmadi. ⚙️"
+        return _not_configured(lang)
 
     system = _system_prompt(lang)
 
@@ -85,51 +123,41 @@ async def ask_ai(lang: Lang, user_text: str) -> str:
                 {"role": "system", "content": system},
                 {"role": "user", "content": user_text},
             ],
-            temperature=0.4,
+            temperature=0.35,
         )
-        out = resp.choices[0].message.content or ""
-        # Safety footer qo'shamiz (juda uzun bo'lmasin)
-        if out and _safety_footer(lang) not in out:
-            out = out.rstrip() + "\n\n" + _safety_footer(lang)
-        return out
+        out = (resp.choices[0].message.content or "").strip()
+        footer = _safety_footer(lang)
+        if out and footer not in out:
+            out = out.rstrip() + "\n\n" + footer
+        return out or footer
 
     try:
         return await asyncio.to_thread(_call_openai)
 
     except openai.RateLimitError:
-        # Bu sizda ko'p chiqqan: insufficient_quota / 429
         if lang == LANG_RU:
-            return (
-                "Hozir AI limiti tugagan yoki balans yetarli emas. ⚙️\n\n"
-                "Iltimos, birozdan keyin urinib ko‘ring yoki admin balansni yangilasin."
-            )
+            return "Лимит консультации исчерпан или баланс недостаточен. Попробуйте немного позже. ⚙️"
         if lang == LANG_EN:
-            return (
-                "AI usage limit reached or balance is insufficient. ⚙️\n\n"
-                "Please try again later or ask the admin to top up the balance."
-            )
-        return (
-            "Hozir AI limiti tugagan yoki balans yetarli emas. ⚙️\n\n"
-            "Birozdan keyin urinib ko‘ring yoki admin balansni yangilasin."
-        )
+            return "The consultation limit has been reached or balance is insufficient. Please try again later. ⚙️"
+        return "Hozir konsultatsiya limiti tugagan yoki balans yetarli emas. Birozdan keyin urinib ko'ring. ⚙️"
 
     except openai.APIConnectionError:
         if lang == LANG_RU:
-            return "AI server bilan ulanishda muammo. Internetni tekshirib, qayta urinib ko‘ring. ⚙️"
+            return "Проблема с подключением к серверу консультации. Проверьте интернет и попробуйте снова. ⚙️"
         if lang == LANG_EN:
-            return "Connection issue to AI server. Check internet and try again. ⚙️"
-        return "AI server bilan ulanishda muammo. Internetni tekshirib, qayta urinib ko‘ring. ⚙️"
+            return "Connection issue with the consultation server. Check the internet and try again. ⚙️"
+        return "AI server bilan ulanishda muammo. Internetni tekshirib, qayta urinib ko'ring. ⚙️"
 
     except openai.APIStatusError:
         if lang == LANG_RU:
-            return "AI xizmatida vaqtinchalik muammo. Keyinroq urinib ko‘ring. ⚙️"
+            return "Во временной консультационной службе возникла проблема. Попробуйте позже. ⚙️"
         if lang == LANG_EN:
-            return "Temporary AI service issue. Please try again later. ⚙️"
-        return "AI xizmatida vaqtinchalik muammo. Keyinroq urinib ko‘ring. ⚙️"
+            return "Temporary consultation service issue. Please try again later. ⚙️"
+        return "Konsultatsiya xizmatida vaqtinchalik muammo bor. Keyinroq urinib ko'ring. ⚙️"
 
     except Exception:
         if lang == LANG_RU:
-            return "Texnik xato yuz berdi. Keyinroq qayta urinib ko‘ring. ⚙️"
+            return "Произошла техническая ошибка. Попробуйте позже. ⚙️"
         if lang == LANG_EN:
             return "A technical error occurred. Please try again later. ⚙️"
-        return "Texnik xato yuz berdi. Keyinroq qayta urinib ko‘ring. ⚙️"
+        return "Texnik xato yuz berdi. Keyinroq qayta urinib ko'ring. ⚙️"

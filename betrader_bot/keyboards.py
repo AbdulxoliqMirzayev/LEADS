@@ -9,7 +9,8 @@ from aiogram.types import (
 from models import (
     Lang, LANG_UZ, LANG_RU, LANG_EN,
     RiskProfile, RISK_HALOL, RISK_KONSERV, RISK_YUQORI,
-    LeadStatus, LEAD_PAID, LEAD_THINKING, LEAD_REJECTED,
+    LeadStatus, LEAD_CALLED, LEAD_NO_ANSWER,
+    LEAD_NEW,
 )
 from texts import t
 
@@ -25,8 +26,9 @@ CB_MENU_PREFIX = "menu:"                # menu:invest | menu:risk | ...
 # Admin
 CB_ADMIN_PREFIX = "admin:"              # admin:main, admin:stats...
 CB_ADMIN_RISK_PREFIX = "admin_risk:"    # admin_risk:halol
-CB_ADMIN_STATUS_PREFIX = "admin_status:"  # admin_status:paid
-CB_LEAD_SET_PREFIX = "lead_set:"        # lead_set:<tg_id>:paid
+CB_ADMIN_STATUS_PREFIX = "admin_status:"  # admin_status:called
+CB_LEAD_SET_PREFIX = "lead_set:"        # lead_set:<tg_id>:called
+CB_SOURCE_PREFIX = "source:"
 
 # Ads
 CB_ADMIN_BROADCAST = "admin:broadcast"  # start broadcast flow
@@ -59,38 +61,27 @@ def kb_yes_no(lang: Lang) -> ReplyKeyboardMarkup:
 # =========================
 # User Main Menu (Reply keyboard)
 # =========================
-def kb_user_menu(lang: Lang) -> ReplyKeyboardMarkup:
-    """
-    ReplyKeyboard: foydalanuvchi uchun asosiy menyu.
-    Handlerlarda text bo'yicha emas, aynan shu tugmalar matnini tekshiramiz.
-    """
-    invest = t(lang, "📈 Investitsiya", "📈 Инвестиции", "📈 Investment")
-    risks = t(lang, "⚡ Risklar", "⚡ Риски", "⚡ Risks")
-    company = t(lang, "🏢 Kompaniya", "🏢 О компании", "🏢 Company")
-    payout = t(lang, "💰 To‘lovlar", "💰 Выплаты", "💰 Payouts")
-    withdraw = t(lang, "💸 Pul yechish", "💸 Вывод", "💸 Withdraw")
-    contact = t(lang, "📞 Kontakt", "📞 Контакты", "📞 Contact")
-    ask = t(lang, "❓ Savol", "❓ Вопрос", "❓ Ask")
-    discount = t(lang, "🎁 Chegirma", "🎁 Промокод", "🎁 Promo")
-    back = t(lang, "⬅️ Ortga", "⬅️ Назад", "⬅️ Back")
-
-    kb = [
-        [KeyboardButton(text=invest), KeyboardButton(text=risks)],
-        [KeyboardButton(text=company), KeyboardButton(text=payout)],
-        [KeyboardButton(text=withdraw), KeyboardButton(text=contact)],
-        [KeyboardButton(text=discount), KeyboardButton(text=ask)],
-        [KeyboardButton(text=back)],
-    ]
-    return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
+def menu_labels(lang: Lang) -> dict[str, str]:
+    return {
+        "invest": t(lang, "📈 Investitsiya", "📈 Инвестиции", "📈 Investment"),
+        "risks": t(lang, "⚡ Risklar", "⚡ Риски", "⚡ Risks"),
+        "company": t(lang, "🏢 Kompaniya", "🏢 О компании", "🏢 Company"),
+        "payout": t(lang, "💰 To‘lovlar", "💰 Выплаты", "💰 Payouts"),
+        "withdraw": t(lang, "💸 Pul yechish", "💸 Вывод", "💸 Withdraw"),
+        "contact": t(lang, "📞 Kontakt", "📞 Контакты", "📞 Contact"),
+        "ask": t(lang, "❓ Savol", "❓ Вопрос", "❓ Ask"),
+        "discount": t(lang, "🎁 Chegirma", "🎁 Промокод", "🎁 Promo"),
+        "back": t(lang, "⬅️ Ortga", "⬅️ Назад", "⬅️ Back"),
+    }
 
 
 # =========================
 # Risk choose (Inline)
 # =========================
 def kb_risk(lang: Lang) -> InlineKeyboardMarkup:
-    a = t(lang, "🟢 Halol (past)", "🟢 Низкий риск", "🟢 Low risk")
-    b = t(lang, "🟡 Konservativ (o‘rta)", "🟡 Средний риск", "🟡 Medium risk")
-    c = t(lang, "🔴 Yuqori (agressiv)", "🔴 Высокий риск", "🔴 High risk")
+    a = t(lang, "🟢 Halol — 15–18% yillik", "🟢 Халал — 15–18% годовых", "🟢 Halal — 15–18% yearly")
+    b = t(lang, "🟡 Konservativ — 15–18% yillik", "🟡 Консервативный — 15–18% годовых", "🟡 Conservative — 15–18% yearly")
+    c = t(lang, "🔴 Yuqori daromadli — 30–50% yillik", "🔴 Высокодоходный — 30–50% годовых", "🔴 High return — 30–50% yearly")
     back = t(lang, "⬅️ Ortga", "⬅️ Назад", "⬅️ Back")
 
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -108,9 +99,23 @@ def kb_admin_main() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📊 Statistika", callback_data=f"{CB_ADMIN_PREFIX}stats")],
         [InlineKeyboardButton(text="📂 Risk bo‘yicha", callback_data=f"{CB_ADMIN_PREFIX}risk_menu")],
-        [InlineKeyboardButton(text="✅/🤔/❌ Status bo‘yicha", callback_data=f"{CB_ADMIN_PREFIX}status_menu")],
+        [InlineKeyboardButton(text="✅/📵 Status bo‘yicha", callback_data=f"{CB_ADMIN_PREFIX}status_menu")],
         [InlineKeyboardButton(text="📢 Reklama yuborish", callback_data=CB_ADMIN_BROADCAST)],
         [InlineKeyboardButton(text="❌ Yopish", callback_data=f"{CB_ADMIN_PREFIX}close")],
+    ])
+
+
+def kb_source() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="Telegram", callback_data=f"{CB_SOURCE_PREFIX}telegram"),
+            InlineKeyboardButton(text="Instagram", callback_data=f"{CB_SOURCE_PREFIX}instagram"),
+        ],
+        [
+            InlineKeyboardButton(text="Facebook", callback_data=f"{CB_SOURCE_PREFIX}facebook"),
+            InlineKeyboardButton(text="TikTok", callback_data=f"{CB_SOURCE_PREFIX}tiktok"),
+        ],
+        [InlineKeyboardButton(text="Other", callback_data=f"{CB_SOURCE_PREFIX}other")],
     ])
 
 
@@ -125,9 +130,9 @@ def kb_admin_risk_menu() -> InlineKeyboardMarkup:
 
 def kb_admin_status_menu() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="✅ Investitsiya qildi", callback_data=f"{CB_ADMIN_STATUS_PREFIX}{LEAD_PAID}")],
-        [InlineKeyboardButton(text="🤔 O‘ylab ko‘rmoqda", callback_data=f"{CB_ADMIN_STATUS_PREFIX}{LEAD_THINKING}")],
-        [InlineKeyboardButton(text="❌ Rad", callback_data=f"{CB_ADMIN_STATUS_PREFIX}{LEAD_REJECTED}")],
+        [InlineKeyboardButton(text="🆕 Yangi leadlar", callback_data=f"{CB_ADMIN_STATUS_PREFIX}{LEAD_NEW}")],
+        [InlineKeyboardButton(text="✅ Gaplashildi", callback_data=f"{CB_ADMIN_STATUS_PREFIX}{LEAD_CALLED}")],
+        [InlineKeyboardButton(text="📵 Telefon ko‘tarmadi", callback_data=f"{CB_ADMIN_STATUS_PREFIX}{LEAD_NO_ANSWER}")],
         [InlineKeyboardButton(text="⬅️ Ortga", callback_data=f"{CB_ADMIN_PREFIX}main")],
     ])
 
@@ -138,11 +143,8 @@ def kb_admin_status_menu() -> InlineKeyboardMarkup:
 def kb_lead_actions(tg_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="✅ Investitsiya qildi", callback_data=f"{CB_LEAD_SET_PREFIX}{tg_id}:{LEAD_PAID}"),
-            InlineKeyboardButton(text="🤔 O‘ylab ko‘rmoqda", callback_data=f"{CB_LEAD_SET_PREFIX}{tg_id}:{LEAD_THINKING}"),
-        ],
-        [
-            InlineKeyboardButton(text="❌ Rad", callback_data=f"{CB_LEAD_SET_PREFIX}{tg_id}:{LEAD_REJECTED}"),
+            InlineKeyboardButton(text="✅ Gaplashildi", callback_data=f"{CB_LEAD_SET_PREFIX}{tg_id}:{LEAD_CALLED}"),
+            InlineKeyboardButton(text="📵 Telefon ko‘tarmadi", callback_data=f"{CB_LEAD_SET_PREFIX}{tg_id}:{LEAD_NO_ANSWER}"),
         ],
     ])
 

@@ -1,57 +1,133 @@
 # handlers/user_handlers.py
 from __future__ import annotations
-from keyboards import (
-    kb_language, kb_yes_no, kb_user_menu, kb_risk,
-)
-from keyboards import (
-    kb_language, kb_yes_no, kb_user_menu, kb_risk, kb_phone_request
-)
+
 from aiogram import Router, F
 from aiogram.filters import CommandStart
-from aiogram.types import Message, CallbackQuery
-from utils import extract_amount, normalize_phone, parse_yes_no, fmt_int
+from aiogram.types import CallbackQuery, Message, ReplyKeyboardRemove
+
+from config import SETTINGS
 from db import (
-    upsert_user, touch_last_seen, get_user,
-    set_lang, set_experience, set_step,
-    set_risk_profile, set_amount, set_phone,
     add_event,
+    get_user,
+    set_amount,
+    set_lang,
+    set_name,
+    set_phone,
+    set_risk_profile,
+    set_source,
+    set_step,
+    touch_last_seen,
+    upsert_user,
+)
+from keyboards import (
+    kb_admin_main,
+    kb_language,
+    kb_phone_request,
+    kb_risk,
+    kb_source,
+    menu_labels,
 )
 from models import (
-    Lang, LANG_UZ,
-    STEP_CHOOSE_EXPERIENCE, STEP_MAIN_MENU,
-    STEP_WAIT_AMOUNT, STEP_WAIT_PHONE,
-    STEP_ASK_FREE_QUESTION,
+    LANG_UZ,
+    Lang,
+    RISK_HALOL,
+    RISK_KONSERV,
     RISK_PROFILES,
+    RISK_YUQORI,
+    STEP_ASK_FREE_QUESTION,
+    STEP_MAIN_MENU,
+    STEP_WAIT_AMOUNT,
+    STEP_WAIT_NAME,
+    STEP_WAIT_PHONE,
+    STEP_WAIT_RISK,
+    STEP_WAIT_SOURCE,
 )
-from texts import TEXT, risk_text
-from keyboards import (
-    kb_language, kb_yes_no, kb_user_menu, kb_risk,
-)
-from utils import extract_amount, normalize_phone, parse_yes_no
 from services.ai_service import ask_ai
 from services.notify_service import notify_admin_new_lead
+from texts import TEXT, risk_text
+from utils import extract_amount, fmt_int, normalize_phone
+from utils import is_admin
 
 router = Router()
 
+RISK_RATE_RANGES = {
+    RISK_HALOL: (0.15, 0.18),
+    RISK_KONSERV: (0.15, 0.18),
+    RISK_YUQORI: (0.30, 0.50),
+}
 
-# =========================
-# /start
-# =========================
+SOURCE_LABELS = {
+    "telegram": "Telegram",
+    "instagram": "Instagram",
+    "facebook": "Facebook",
+    "tiktok": "TikTok",
+    "other": "Other",
+}
+
+BACK_TEXTS = {
+    "⬅️ Ortga",
+    "Ortga",
+    "⬅️ Назад",
+    "Назад",
+    "⬅️ Back",
+    "Back",
+}
+
+
+def _clean_name(text: str) -> str:
+    return " ".join((text or "").strip().split())
+
+
+def _money(value: float) -> str:
+    return f"{fmt_int(value)} USD"
+
+
+def _profit_range(amount: float, risk: str, months: int) -> tuple[float, float]:
+    low, high = RISK_RATE_RANGES[risk]
+    return amount * low * months / 12, amount * high * months / 12
+
+
+def _profit_text(lang: Lang, amount: float, risk: str) -> str:
+    rows = []
+    for label, months in (("1 oy", 1), ("3 oy", 3), ("6 oy", 6), ("1 yil", 12)):
+        low, high = _profit_range(amount, risk, months)
+        rows.append(f"{label}: {_money(low)} – {_money(high)}")
+
+    if lang == "ru":
+        title = "📊 Ориентировочный расчёт дохода"
+        note = "⚠️ Это не гарантия. Фактическая прибыль зависит от состояния рынка."
+    elif lang == "en":
+        title = "📊 Estimated profit calculation"
+        note = "⚠️ This is not guaranteed. Actual profit depends on market conditions."
+        rows = [row.replace("1 oy", "1 month").replace("3 oy", "3 months").replace("6 oy", "6 months").replace("1 yil", "1 year") for row in rows]
+    else:
+        title = "📊 Taxminiy daromad hisob-kitobi"
+        note = "⚠️ Bu kafolat emas. Real foyda bozor holatiga qarab o‘zgaradi."
+
+    return (
+        f"{risk_text(lang, risk)}\n\n"
+        f"{title}\n"
+        f"💵 Summa: {_money(amount)}\n\n"
+        + "\n".join(rows)
+        + f"\n\n{note}"
+    )
+
+
 @router.message(CommandStart())
 async def cmd_start(m: Message):
     upsert_user(m.from_user.id, m.from_user.username, m.from_user.full_name)
     touch_last_seen(m.from_user.id)
     add_event(m.from_user.id, "start", "/start")
 
+    if is_admin(m.from_user.id, SETTINGS.ADMIN_IDS):
+        await m.answer("🔐 Admin panel", reply_markup=kb_admin_main(), parse_mode=None)
+        return
+
     u = get_user(m.from_user.id)
     lang: Lang = (u.get("lang") if u else LANG_UZ) or LANG_UZ
-
     await m.answer(TEXT["choose_lang"][lang], reply_markup=kb_language())
 
 
-# =========================
-# Language callback
-# =========================
 @router.callback_query(F.data.startswith("lang:"))
 async def cb_lang(c: CallbackQuery):
     tg_id = c.from_user.id
@@ -59,18 +135,14 @@ async def cb_lang(c: CallbackQuery):
     if lang not in ("uz", "ru", "en"):
         lang = "uz"
 
-    # DB update
-    set_lang(tg_id, lang, STEP_CHOOSE_EXPERIENCE)
+    set_lang(tg_id, lang, STEP_WAIT_NAME)
     touch_last_seen(tg_id)
 
-    await c.message.answer(TEXT["ask_experience"][lang], reply_markup=kb_yes_no(lang))
+    await c.message.answer(TEXT["ask_name"][lang])
     await c.answer()
 
 
-# =========================
-# Main text handler (experience, menu, steps, free questions)
-# =========================
-@router.message(F.text)
+@router.message(F.text | F.contact)
 async def on_text(m: Message):
     tg_id = m.from_user.id
     text = (m.text or "").strip()
@@ -85,138 +157,147 @@ async def on_text(m: Message):
 
     lang: Lang = u.get("lang", LANG_UZ) or LANG_UZ
     step = u.get("step")
+    labels = menu_labels(lang)
 
-    # ---- Step: experience ----
-    if step == STEP_CHOOSE_EXPERIENCE:
-        yn = parse_yes_no(text, lang)
-        # Recognize bo'lmasa ham False qilib yubormaymiz, qayta so'raymiz
-        if yn is None:
-            await m.answer(TEXT["ask_experience"][lang], reply_markup=kb_yes_no(lang))
+    if text in BACK_TEXTS:
+        if step == STEP_WAIT_PHONE:
+            set_step(tg_id, STEP_WAIT_RISK)
+            await m.answer(TEXT["ask_risk"][lang], reply_markup=kb_risk(lang))
             return
-
-        set_experience(tg_id, yn, STEP_MAIN_MENU)
-        await m.answer(TEXT["menu_hint"][lang], reply_markup=kb_user_menu(lang))
+        if step == STEP_WAIT_AMOUNT:
+            set_step(tg_id, STEP_WAIT_NAME)
+            await m.answer(TEXT["ask_name"][lang], reply_markup=ReplyKeyboardRemove())
+            return
+        set_step(tg_id, STEP_MAIN_MENU)
+        await m.answer(TEXT["menu_hint"][lang], reply_markup=ReplyKeyboardRemove())
         return
 
-    # ---- Step: amount ----
+    if step == STEP_WAIT_NAME:
+        name = _clean_name(text)
+        if len(name) < 2:
+            await m.answer(TEXT["ask_name"][lang])
+            return
+
+        set_name(tg_id, name, STEP_WAIT_AMOUNT)
+        await m.answer(TEXT["ask_amount"][lang])
+        return
+
     if step == STEP_WAIT_AMOUNT:
-        amt = extract_amount(text)
-        if not amt:
+        amount = extract_amount(text)
+        if not amount:
             await m.answer(TEXT["invalid_amount"][lang])
             return
 
-        set_amount(tg_id, amt)
-        # keyingi: telefon
-        set_step(tg_id, STEP_WAIT_PHONE)
-        await m.answer(TEXT["amount_saved"][lang])
-        await m.answer(TEXT["ask_phone"][lang])
-        return
-
-    # ---- Step: phone ----
-    if step == STEP_WAIT_PHONE:
-    # 1) agar contact yuborsa
-     if m.contact and m.contact.phone_number:
-        phone = m.contact.phone_number
-    else:
-        phone = normalize_phone(text)
-
-    if not phone:
-        await m.answer(TEXT["invalid_phone"][lang], reply_markup=kb_phone_request(lang))
-        return
-
-    set_phone(tg_id, phone)
-    set_step(tg_id, STEP_MAIN_MENU)
-    await m.answer(TEXT["phone_saved"][lang], reply_markup=kb_user_menu(lang))
-
-    await notify_admin_new_lead(m.bot, tg_id)
-    return
-
-    # ---- Menu buttons ----
-    # Tugmalarni texts.py dagi t(...) bilan emas, keyboards.py da yaratgan label bilan solishtiramiz.
-    # Shuning uchun bu yerda har tilda variantlarni tekshiramiz.
-    if text in ("⚡ Risklar", "⚡ Риски", "⚡ Risks"):
-        add_event(tg_id, "menu_click", "risk_menu")
+        set_amount(tg_id, amount, STEP_WAIT_RISK)
         await m.answer(TEXT["ask_risk"][lang], reply_markup=kb_risk(lang))
         return
 
-    if text in ( "📈 Investitsiya nima?", "📈 Что такое инвестиции?", "📈 What is investing?"):
-        add_event(tg_id, "menu_click", "investment_info")
-        await m.answer(TEXT["investment_info"][lang], reply_markup=kb_user_menu(lang))
+    if step == STEP_WAIT_PHONE:
+        if m.contact and m.contact.phone_number:
+            phone = m.contact.phone_number
+        else:
+            phone = normalize_phone(text)
+
+        if not phone:
+            await m.answer(TEXT["invalid_phone"][lang], reply_markup=kb_phone_request(lang))
+            return
+
+        set_phone(tg_id, phone, STEP_WAIT_SOURCE)
+        await m.answer(TEXT["phone_saved"][lang], reply_markup=ReplyKeyboardRemove())
+        await m.answer(TEXT["ask_source"][lang], reply_markup=kb_source())
         return
 
-    if text in ("🏢 Kompaniya", "🏢 О компании", "🏢 Company"):
-        add_event(tg_id, "menu_click", "company_about")
-        await m.answer(TEXT["company_about"][lang], reply_markup=kb_user_menu(lang))
+    if text == labels["risks"]:
+        set_step(tg_id, STEP_WAIT_RISK)
+        await m.answer(TEXT["ask_risk"][lang], reply_markup=kb_risk(lang))
         return
 
-    if text in ("💰 To‘lovlar", "💰 Выплаты", "💰 Payouts"):
-        add_event(tg_id, "menu_click", "payout_info")
-        await m.answer(TEXT["payout_info"][lang], reply_markup=kb_user_menu(lang))
+    if text == labels["invest"]:
+        await m.answer(TEXT["investment_info"][lang], reply_markup=ReplyKeyboardRemove())
         return
 
-    if text in ("💸 Pul yechish", "💸 Вывод", "💸 Withdraw"):
-        add_event(tg_id, "menu_click", "withdraw_info")
-        await m.answer(TEXT["withdraw_info"][lang], reply_markup=kb_user_menu(lang))
+    if text == labels["company"] or text == labels["contact"]:
+        await m.answer(TEXT["company_about"][lang], reply_markup=ReplyKeyboardRemove())
         return
 
-    if text in ("📞 Kontakt", "📞 Контакты", "📞 Contact"):
-        add_event(tg_id, "menu_click", "contact")
-        # company_about ichida kontaktlar bor, lekin alohida ham chiqaramiz
-        await m.answer(TEXT["company_about"][lang], reply_markup=kb_user_menu(lang))
+    if text == labels["payout"]:
+        await m.answer(TEXT["payout_info"][lang], reply_markup=ReplyKeyboardRemove())
         return
 
-    if text in ("🎁 Chegirma", "🎁 Промокод", "🎁 Promo"):
-        add_event(tg_id, "menu_click", "discount")
-        await m.answer(TEXT["discount"][lang], reply_markup=kb_user_menu(lang))
+    if text == labels["withdraw"]:
+        await m.answer(TEXT["withdraw_info"][lang], reply_markup=ReplyKeyboardRemove())
         return
 
-    if text in ("❓ Savol", "❓ Вопрос", "❓ Ask"):
-        add_event(tg_id, "menu_click", "ask_free_question")
+    if text == labels["discount"]:
+        await m.answer(TEXT["discount"][lang], reply_markup=ReplyKeyboardRemove())
+        return
+
+    if text == labels["ask"]:
         set_step(tg_id, STEP_ASK_FREE_QUESTION)
-        await m.answer(TEXT["ask_free_question"][lang], reply_markup=kb_user_menu(lang))
+        await m.answer(TEXT["ask_free_question"][lang], reply_markup=ReplyKeyboardRemove())
         return
 
-    if text in ("⬅️ Ortga", "⬅️ Назад", "⬅️ Back"):
+    if text == labels["back"]:
         set_step(tg_id, STEP_MAIN_MENU)
-        await m.answer(TEXT["menu_hint"][lang], reply_markup=kb_user_menu(lang))
+        await m.answer(TEXT["menu_hint"][lang], reply_markup=ReplyKeyboardRemove())
         return
 
-    # ---- Free questions fallback (AI) ----
     add_event(tg_id, "free_question", text[:200])
-
     ai_reply = await ask_ai(lang, text)
-    await m.answer(ai_reply, reply_markup=kb_user_menu(lang))
+    await m.answer(ai_reply, reply_markup=ReplyKeyboardRemove())
 
 
-# =========================
-# Risk callback
-# =========================
 @router.callback_query(F.data.startswith("risk:"))
 async def cb_risk(c: CallbackQuery):
     tg_id = c.from_user.id
     u = get_user(tg_id)
     lang: Lang = (u.get("lang") if u else LANG_UZ) or LANG_UZ
 
-    val = c.data.split(":", 1)[1].strip()
+    value = c.data.split(":", 1)[1].strip()
 
-    if val == "back":
-        set_step(tg_id, STEP_MAIN_MENU)
-        await c.message.answer(TEXT["menu_hint"][lang], reply_markup=kb_user_menu(lang))
+    if value == "back":
+        set_step(tg_id, STEP_WAIT_AMOUNT)
+        await c.message.answer(TEXT["ask_amount"][lang])
         await c.answer()
         return
 
-    # Valid risk check
-    if val not in RISK_PROFILES:
+    if value not in RISK_PROFILES:
         await c.answer("Invalid risk", show_alert=True)
         return
 
-    set_risk_profile(tg_id, val)  # DB + event
-    set_step(tg_id, STEP_WAIT_AMOUNT)
+    amount = float((u or {}).get("amount") or 0)
+    if amount <= 0:
+        set_step(tg_id, STEP_WAIT_AMOUNT)
+        await c.message.answer(TEXT["ask_amount"][lang])
+        await c.answer()
+        return
 
-    # risk info + next questions
-    await c.message.answer(risk_text(lang, val))
-    await c.message.answer(TEXT["ask_amount"][lang])
+    set_risk_profile(tg_id, value, STEP_WAIT_PHONE)
+    try:
+        await c.message.edit_reply_markup(reply_markup=None)
+    except Exception:
+        pass
+    await c.message.answer(_profit_text(lang, amount, value))
+    await c.message.answer(TEXT["ask_phone"][lang], reply_markup=kb_phone_request(lang))
     await c.answer()
 
-    # Admin notification (risk tanlangan zahoti)
+
+@router.callback_query(F.data.startswith("source:"))
+async def cb_source(c: CallbackQuery):
+    tg_id = c.from_user.id
+    u = get_user(tg_id)
+    lang: Lang = (u.get("lang") if u else LANG_UZ) or LANG_UZ
+
+    source = c.data.split(":", 1)[1].strip()
+    if source not in SOURCE_LABELS:
+        await c.answer("Invalid source", show_alert=True)
+        return
+
+    set_source(tg_id, SOURCE_LABELS[source], STEP_MAIN_MENU)
+    try:
+        await c.message.edit_reply_markup(reply_markup=None)
+    except Exception:
+        pass
     await notify_admin_new_lead(c.bot, tg_id)
+    await c.message.answer(TEXT["registration_done"][lang], reply_markup=ReplyKeyboardRemove())
+    await c.answer()

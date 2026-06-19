@@ -27,76 +27,55 @@ COMPANY_CONTACTS = {
 
 RISK_TEXTS_UZ = {
     RISK_HALOL: (
-        "🟢 **Halol (past risk)**\n"
-        "• Maqsad: kapitalni asrash, barqarorlik\n"
-        "• Volatillik: past\n"
-        "• Kutiladigan daromad: bozor sharoitiga bog‘liq\n\n"
-        "📌 Risk past bo‘lsa, daromad ham odatda pastroq bo‘ladi."
+        "🟢 Halol yo‘nalish\n"
+        "Shariat talablariga mos aksiyalar bilan ehtiyotkor ishlanadi. "
+        "Taxminiy yillik daromad: 15–18%."
     ),
     RISK_KONSERV: (
-        "🟡 **Konservativ (o‘rta risk)**\n"
-        "• Maqsad: balans — xavf va daromad o‘rtasida\n"
-        "• Volatillik: o‘rtacha\n"
-        "• Kutiladigan daromad: bozor sharoitiga bog‘liq\n\n"
-        "📌 Risk o‘rta bo‘lsa, daromad ham o‘rtacha bo‘lishi mumkin."
+        "🟡 Konservativ yo‘nalish\n"
+        "Kapitalni ehtiyotkor boshqarish va barqarorlikka urg‘u beriladi. "
+        "Taxminiy yillik daromad: 15–18%."
     ),
     RISK_YUQORI: (
-        "🔴 **Yuqori (agressiv risk)**\n"
-        "• Maqsad: yuqori daromad potensiali\n"
-        "• Volatillik: yuqori\n"
-        "• Kutiladigan daromad: yuqori bo‘lishi mumkin, lekin yo‘qotish riski ham yuqori\n\n"
-        "📌 Risk yuqori bo‘lsa, daromad ham yuqori bo‘lishi **mumkin**."
+        "🔴 Yuqori daromadli yo‘nalish\n"
+        "Daromad potensiali yuqoriroq, lekin bozor tebranishi va risk ham yuqoriroq. "
+        "Taxminiy yillik daromad: 30–50%."
     ),
 }
 
 RISK_TEXTS_RU = {
     RISK_HALOL: (
-        "🟢 **Низкий риск**\n"
-        "• Цель: сохранение капитала, стабильность\n"
-        "• Волатильность: низкая\n"
-        "• Потенциальная доходность зависит от рынка\n\n"
-        "📌 Чем ниже риск — тем чаще ниже потенциальная доходность."
+        "🟢 Халал-направление\n"
+        "Работа ведётся с акциями, соответствующими шариатским требованиям. "
+        "Ориентировочная годовая доходность: 15–18%."
     ),
     RISK_KONSERV: (
-        "🟡 **Средний риск**\n"
-        "• Цель: баланс риска и доходности\n"
-        "• Волатильность: средняя\n"
-        "• Потенциальная доходность зависит от рынка\n\n"
-        "📌 Средний риск — это обычно средняя потенциальная доходность."
+        "🟡 Консервативное направление\n"
+        "Акцент на осторожное управление капиталом и стабильность. "
+        "Ориентировочная годовая доходность: 15–18%."
     ),
     RISK_YUQORI: (
-        "🔴 **Высокий риск**\n"
-        "• Цель: высокая потенциальная доходность\n"
-        "• Волатильность: высокая\n"
-        "• Доходность может быть выше, но риск просадки тоже выше\n\n"
-        "📌 Чем выше риск — тем выше доходность **может** быть."
+        "🔴 Высокодоходное направление\n"
+        "Потенциал доходности выше, но рыночные колебания и риск также выше. "
+        "Ориентировочная годовая доходность: 30–50%."
     ),
 }
 
 RISK_TEXTS_EN = {
     RISK_HALOL: (
-        "🟢 **Halol (past risk)**\n"
-        "• 15–20% yillik (taxminiy)\n"
-        "• 1.2–1.6% oylik (o‘rtacha)\n"
-        "• Kapitalni saqlashga yo‘naltirilgan\n"
-        "• Volatillik: past\n\n"
-        "📌 Risk past bo‘lsa, daromad ham odatda pastroq bo‘ladi."
+        "🟢 Halal direction\n"
+        "A more careful approach focused on Sharia-compliant stocks. "
+        "Estimated yearly return: 15–18%."
     ),
     RISK_KONSERV: (
-        "🟡 **Konservativ (o‘rta risk)**\n"
-        "• 20–25% yillik (taxminiy)\n"
-        "• 1.8–2.1% oylik (o‘rtacha)\n"
-        "• Balansli yondashuv\n"
-        "• Volatillik: o‘rtacha\n\n"
-        "📌 Risk o‘rta bo‘lsa, daromad ham o‘rtacha bo‘lishi mumkin."
+        "🟡 Conservative direction\n"
+        "A careful capital-management approach focused on stability. "
+        "Estimated yearly return: 15–18%."
     ),
     RISK_YUQORI: (
-        "🔴 **Yuqori (agressiv risk)**\n"
-        "• 30% gacha yillik (taxminiy)\n"
-        "• 2.3–2.6% oylik (o‘rtacha)\n"
-        "• Yuqori daromad potensiali\n"
-        "• Volatillik: yuqori\n\n"
-        "📌 Risk yuqori bo‘lsa, daromad ham yuqori bo‘lishi **mumkin**."
+        "🔴 High-return direction\n"
+        "Higher return potential, but market volatility and risk are also higher. "
+        "Estimated yearly return: 30–50%."
     ),
 }
 
@@ -114,15 +93,15 @@ def risk_text(lang: Lang, risk: RiskProfile) -> str:
 # =========================
 TEXT: Dict[str, Dict[Lang, str]] = {
     "choose_lang": {
-        LANG_UZ: "Assalomu alaykum! Tilni tanlang 👇",
+        LANG_UZ: "Assalomu alaykum! BeTrader ro‘yxatdan o‘tish botiga xush kelibsiz.\n\nTilni tanlang 👇",
         LANG_RU: "Здравствуйте! Выберите язык 👇",
         LANG_EN: "Hello! Choose a language 👇",
     },
 
-    "ask_experience": {
-        LANG_UZ: "Fond bozori / savdo bo‘yicha tajribangiz bormi?",
-        LANG_RU: "Есть ли у вас опыт в рынке/трейдинге?",
-        LANG_EN: "Do you have experience with markets/trading?",
+    "ask_name": {
+        LANG_UZ: "👤 Ismingizni yozing.",
+        LANG_RU: "👤 Напишите ваше имя.",
+        LANG_EN: "👤 Please type your name.",
     },
 
     "menu_hint": {
@@ -138,15 +117,27 @@ TEXT: Dict[str, Dict[Lang, str]] = {
     },
 
     "ask_amount": {
-        LANG_UZ: "Ajratmoqchi bo‘lgan summangizni yozing (masalan: 1000 yoki 5000). 💰",
-        LANG_RU: "Укажите сумму, которую планируете выделить (например: 1000 или 5000). 💰",
-        LANG_EN: "Type the amount you plan to allocate (e.g., 1000 or 5000). 💰",
+        LANG_UZ: "💵 Qancha miqdorda investitsiya kiritmoqchisiz?\n\nSummani USD da yozing. Masalan: 1000$",
+        LANG_RU: "💵 Какую сумму вы хотите инвестировать?\n\nУкажите сумму в USD. Например: 1000$",
+        LANG_EN: "💵 How much would you like to invest?\n\nPlease enter the amount in USD. Example: 1000$",
     },
 
     "ask_phone": {
-    LANG_UZ: "Telefon raqamingizni yuboring: 📲 *Kontakt yuborish* tugmasini bosing yoki qo‘lda yozing (masalan: +998901234567).",
-    LANG_RU: "Отправьте номер: нажмите 📲 *Отправить контакт* или введите вручную (например: +998901234567).",
-    LANG_EN: "Send your phone number: tap 📲 *Send contact* or type it (e.g., +998901234567).",
+        LANG_UZ: "Telefon raqamingizni yuboring: 📲 *Kontakt yuborish* tugmasini bosing yoki qo‘lda yozing (masalan: +998901234567).",
+        LANG_RU: "Отправьте номер: нажмите 📲 *Отправить контакт* или введите вручную (например: +998901234567).",
+        LANG_EN: "Send your phone number: tap 📲 *Send contact* or type it (e.g., +998901234567).",
+    },
+
+    "ask_source": {
+        LANG_UZ: "📍 Biz haqimizda qayerdan eshitdingiz?",
+        LANG_RU: "📍 Откуда вы узнали о нас?",
+        LANG_EN: "📍 Where did you hear about us?",
+    },
+
+    "registration_done": {
+        LANG_UZ: "✅ Ma’lumotlaringiz qabul qilindi.\n\nMutaxassislarimiz tez orada siz bilan bog‘lanadi. Qo‘shimcha savollaringiz bo‘lsa, shu yerga yozishingiz mumkin.",
+        LANG_RU: "✅ Ваши данные приняты.\n\nНаши специалисты скоро свяжутся с вами. Если есть дополнительные вопросы, можете написать здесь.",
+        LANG_EN: "✅ Your information has been received.\n\nOur specialists will contact you soon. If you have additional questions, you can write them here.",
     },
 
     "amount_saved": {
@@ -246,25 +237,25 @@ TEXT: Dict[str, Dict[Lang, str]] = {
     },
 
     "investment_info": {
-    LANG_UZ: (
-        "📈 **Investitsiya nima?**\n\n"
-        "Oddiy qilib: investitsiya — pulni hozir sarflamasdan, uni aktivlarga joylab, vaqt o‘tishi bilan oshirishga urinish.\n\n"
-        "🔎 Muhim: daromad bo‘lishi uchun risk ham bo‘ladi. Shuning uchun riskni to‘g‘ri tanlash va diversifikatsiya muhim.\n\n"
-        "Siz qaysi risk darajasini ko‘rib chiqyapsiz? 🙂"
-    ),
-    LANG_RU: (
-        "📈 **Что такое инвестиции?**\n\n"
-        "Просто: инвестиции — это размещение капитала в активах, чтобы со временем попытаться увеличить его.\n\n"
-        "🔎 Важно: доходность связана с риском. Поэтому важны выбор риска и диверсификация.\n\n"
-        "Какой уровень риска вы рассматриваете? 🙂"
-    ),
-    LANG_EN: (
-        "📈 **What is investing?**\n\n"
-        "Simply: investing means allocating money into assets to try to grow it over time.\n\n"
-        "🔎 Important: returns come with risk. Choosing the right risk level and diversification matters.\n\n"
-        "Which risk level are you considering? 🙂"
-    ),
-},
+        LANG_UZ: (
+            "📈 **Investitsiya nima?**\n\n"
+            "Oddiy qilib: investitsiya — pulni hozir sarflamasdan, uni aktivlarga joylab, vaqt o‘tishi bilan oshirishga urinish.\n\n"
+            "🔎 Muhim: daromad bo‘lishi uchun risk ham bo‘ladi. Shuning uchun riskni to‘g‘ri tanlash va diversifikatsiya muhim.\n\n"
+            "Siz qaysi risk darajasini ko‘rib chiqyapsiz? 🙂"
+        ),
+        LANG_RU: (
+            "📈 **Что такое инвестиции?**\n\n"
+            "Просто: инвестиции — это размещение капитала в активах, чтобы со временем попытаться увеличить его.\n\n"
+            "🔎 Важно: доходность связана с риском. Поэтому важны выбор риска и диверсификация.\n\n"
+            "Какой уровень риска вы рассматриваете? 🙂"
+        ),
+        LANG_EN: (
+            "📈 **What is investing?**\n\n"
+            "Simply: investing means allocating money into assets to try to grow it over time.\n\n"
+            "🔎 Important: returns come with risk. Choosing the right risk level and diversification matters.\n\n"
+            "Which risk level are you considering? 🙂"
+        ),
+    },
 
     "ask_free_question": {
         LANG_UZ: "Savolingizni yozing — men sizga sodda qilib tushuntirib beraman 🙂",
@@ -279,9 +270,9 @@ TEXT: Dict[str, Dict[Lang, str]] = {
     },
 
     "invalid_amount": {
-        LANG_UZ: "Summani sonlarda yozing. Masalan: 1000 yoki 5000.",
-        LANG_RU: "Введите сумму числами. Например: 1000 или 5000.",
-        LANG_EN: "Type the amount as a number. Example: 1000 or 5000.",
+        LANG_UZ: "Summani USD da son bilan yozing. Masalan: 1000$",
+        LANG_RU: "Введите сумму в USD числом. Например: 1000$",
+        LANG_EN: "Enter the amount in USD as a number. Example: 1000$",
     },
 
     "invalid_phone": {

@@ -1,67 +1,60 @@
-# services/notify_service.py
 from __future__ import annotations
 
 from aiogram import Bot
 
 from config import SETTINGS
-from db import get_user, add_event
+from db import add_event, get_user
 from keyboards import kb_lead_actions
-from utils import safe_username, fmt_int
+from services.google_sheets_service import sync_lead_to_google_sheet
+from utils import fmt_int, safe_username
 
 
 def _lead_card_text(u: dict) -> str:
-    """
-    Admin uchun user profili bo‘yicha chiroyli card.
-    """
+    name = u.get("name") or u.get("full_name") or "-"
     username = safe_username(u.get("username"))
-    exp = u.get("experienced")
-    if exp == 1:
-        exp_txt = "Ha"
-    elif exp == 0:
-        exp_txt = "Yo‘q"
-    else:
-        exp_txt = "-"
-
     amount = u.get("amount")
-    amount_txt = f"${fmt_int(amount)}" if amount else "-"
-
+    amount_txt = f"{fmt_int(amount)} USD" if amount else "-"
     phone = u.get("phone") or "-"
+    risk = u.get("risk_profile") or "-"
+    source = u.get("source") or "-"
+    created_at = u.get("created_at") or "-"
 
     return (
-        "🆕 Yangi Lead\n\n"
-        f"👤 Ism: {u.get('full_name') or '-'}\n"
+        "🆕 Yangi foydalanuvchi\n\n"
+        f"👤 Ism: {name}\n"
+        f"📞 Tel: {phone}\n"
+        f"💰 Summa: {amount_txt}\n"
+        f"📈 Risk: {risk}\n"
+        f"📍 Manba: {source}\n"
         f"🔗 Username: {username}\n"
-        f"🆔 TG ID: {u.get('tg_id')}\n\n"
-        f"📊 Risk: {u.get('risk_profile') or '-'}\n"
-        f"📚 Tajriba: {exp_txt}\n"
-        f"💰 Ajratmoqchi summa: {amount_txt}\n"
-        f"📞 Telefon: {phone}\n\n"
-        "✅/🤔/❌ Statusni belgilang:"
+        f"🆔 ID: {u.get('tg_id')}\n"
+        f"🕒 Sana: {created_at}\n\n"
+        "Statusni belgilang:"
     )
 
 
 async def notify_admin_new_lead(bot: Bot, tg_id: int) -> None:
     """
-    User risk/profil kiritganda adminlarga xabar yuboradi.
+    Ro'yxatdan o'tish tugaganda Google Sheetsga yozadi va adminlarga xabar yuboradi.
     """
-    if not SETTINGS.ADMIN_IDS:
-        return
-
     u = get_user(tg_id)
     if not u:
         return
 
-    text = _lead_card_text(u)
+    await sync_lead_to_google_sheet(u)
+
+    if not SETTINGS.ADMIN_IDS:
+        return
 
     for admin_id in SETTINGS.ADMIN_IDS:
         try:
             await bot.send_message(
                 admin_id,
-                text,
+                _lead_card_text(u),
                 reply_markup=kb_lead_actions(tg_id),
+                parse_mode=None,
             )
         except Exception:
-            # Admin bloklagan bo‘lishi mumkin, yoki chat yo‘q
             pass
 
     add_event(tg_id, "menu_click", "lead_sent_to_admin")
