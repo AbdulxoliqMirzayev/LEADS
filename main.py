@@ -382,7 +382,7 @@ User language in this chat is: {lang}.
     # OpenAI chaqiruvini fon threadida bajarish
     def _call_openai():
         resp = client.chat.completions.create(
-            model="gpt-4.1-mini",
+            model="gpt-5.4",
             messages=messages,
             temperature=0.4,
         )

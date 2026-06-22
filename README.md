@@ -23,7 +23,7 @@ Kerakli environment variables:
 ```env
 TELEGRAM_BOT_TOKEN=
 OPENAI_API_KEY=
-OPENAI_MODEL=gpt-4.1-mini
+OPENAI_MODEL=gpt-5.4
 ADMIN_IDS=8618220454
 DB_PATH=betrader.sqlite3
 GOOGLE_SHEETS_SPREADSHEET_ID=

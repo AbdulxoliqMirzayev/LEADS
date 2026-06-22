@@ -74,7 +74,7 @@ def load_settings() -> Settings:
         TELEGRAM_BOT_TOKEN=token,
 
         OPENAI_API_KEY=os.getenv("OPENAI_API_KEY", "").strip(),
-        OPENAI_MODEL=os.getenv("OPENAI_MODEL", "gpt-4.1-mini").strip(),
+        OPENAI_MODEL=os.getenv("OPENAI_MODEL", "gpt-5.4").strip(),
         AI_SYSTEM_PROMPT_FILE=os.getenv("AI_SYSTEM_PROMPT_FILE", "").strip(),
 
         ADMIN_IDS=_parse_admin_ids(os.getenv("ADMIN_IDS", "")),
