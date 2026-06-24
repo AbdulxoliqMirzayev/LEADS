@@ -139,7 +139,7 @@ async def admin_reply_menu(m: Message):
 # -------------------------
 # Admin callbacks
 # -------------------------
-@router.callback_query(F.data.startswith("admin:"))
+@router.callback_query(F.data.startswith("admin:") & (F.data != "admin:broadcast"))
 async def admin_callbacks(c: CallbackQuery):
     if not is_admin(c.from_user.id, SETTINGS.ADMIN_IDS):
         await c.answer("No access", show_alert=True)
@@ -172,11 +172,6 @@ async def admin_callbacks(c: CallbackQuery):
     if action == "status_menu":
         await c.message.edit_text("✅/📵 Status bo‘yicha", reply_markup=kb_admin_status_menu(), parse_mode=None)
         add_event(c.from_user.id, "menu_click", "admin_status_menu")
-        await c.answer()
-        return
-
-    # broadcast tugmasi ad_handlers.py da ushlanadi (keyingi bosqichda)
-    if action == "broadcast":
         await c.answer()
         return
 
