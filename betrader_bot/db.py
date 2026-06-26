@@ -211,7 +211,6 @@ def set_risk_profile(tg_id: int, risk: RiskProfile, next_step: Step | None = Non
         conn.commit()
     add_event(tg_id, "risk_selected", risk)
 
-
 def set_phone(tg_id: int, phone: str, next_step: Step | None = None) -> None:
     with _conn() as conn:
         if next_step:

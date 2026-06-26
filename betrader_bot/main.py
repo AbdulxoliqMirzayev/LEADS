@@ -78,8 +78,15 @@ async def main() -> None:
     logging.info("No-answer admin reminders scheduled every 3 hours.")
 
     # 5. Polling
-    await dp.start_polling(bot)
+    try:
+        await dp.start_polling(bot)
+    finally:
+        scheduler.shutdown(wait=False)
+        await bot.session.close()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logging.info("Bot foydalanuvchi tomonidan to'xtatildi.")
